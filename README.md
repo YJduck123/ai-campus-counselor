@@ -76,6 +76,10 @@ npm install
 # 智谱 AI (必填，用于核心对话逻辑)
 GLM_API_KEY=your_glm_api_key_here
 
+# 魔珐星云数字人 (Xmov)
+XMOV_APP_ID=your_xmov_app_id_here
+XMOV_APP_SECRET=your_xmov_app_secret_here
+
 # Firecrawl (选填，用于校园知识联网搜索)
 FIRECRAWL_API_KEY=your_firecrawl_api_key_here
 
