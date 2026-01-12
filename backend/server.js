@@ -10,6 +10,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
+// API: Get Xmov Config
+app.get('/api/config/xmov', (req, res) => {
+    res.json({
+        appId: process.env.XMOV_APP_ID,
+        appSecret: process.env.XMOV_APP_SECRET
+    });
+});
+
 // System Prompt
 const SYSTEM_PROMPT = `
 你叫“小云”，是大学里的AI校园向导，也是一位热心、幽默且知识渊博的学长。

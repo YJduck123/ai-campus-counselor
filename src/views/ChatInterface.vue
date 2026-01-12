@@ -222,13 +222,21 @@ const initDigitalHuman = () => {
         containerElement.style.display = 'block'
         containerElement.style.background = '#2a2a2a'
 
-        const APP_ID = 'af046ac8463b4259ba8834a5e47ac6e2'
-        const APP_SECRET = '4153db6842a54c129ef5561f7b3d8d1b'
+        // 从后端动态获取配置
+        let config = { appId: '', appSecret: '' }
+        try {
+          const res = await axios.get('/api/config/xmov')
+          config = res.data
+          console.log('Successfully fetched Xmov config from backend')
+        } catch (err) {
+          console.error('Failed to fetch Xmov config:', err)
+          // 如果获取失败，可以根据需要决定是否继续或报错
+        }
 
         const instance = new XmovAvatar({
           containerId: '#digital-human-canvas',
-          appId: APP_ID,
-          appSecret: APP_SECRET,
+          appId: config.appId,
+          appSecret: config.appSecret,
           gatewayServer: 'https://nebula-agent.xingyun3d.com/user/v1/ttsa/session',
           hardwareAcceleration: 'prefer-software', // 改为软件解码，避免编解码器配置错误
           scale: 0.35, // 调整缩放比例，让全身显示
