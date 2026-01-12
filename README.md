@@ -1,121 +1,51 @@
 # 🎓 AI 校园百事通 (AI Campus Counselor)
 
-> **你的 24 小时智能校园向导，基于 GLM-4 大模型与 RAG 检索增强技术。**
+> **新一代 AI 导师：一个会陪你学习、练习与成长的数字人老师。**
+> **参赛赛道：AI 实时交互教育 —— 把学习从“看内容”升级为“实时对话与陪练”。**
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Vue](https://img.shields.io/badge/Frontend-Vue.js_3-42b883.svg)
 ![Node](https://img.shields.io/badge/Backend-Node.js-339933.svg)
 ![GLM-4](https://img.shields.io/badge/AI-GLM--4-purple.svg)
+![Digital Human](https://img.shields.io/badge/Avatar-Xmov_SDK-orange.svg)
 
 ## 📖 项目简介
 
-**AI 校园百事通** 是一款专为高校师生打造的智能咨询助手。它摒弃了传统校园官网枯燥的搜索体验，采用由 **GLM-4** 驱动的生成式 AI，结合 **Firecrawl** 实时联网检索能力，为用户提供有温度、有逻辑、事实准确的校园生活指引。
+**AI 校园百事通** 是一款集“校园导览”与“AI 导师陪练”于一体的智能教育终端。基于 **GLM-4** 大模型、**星云 (Xmov) 3D 数字人技术** 以及 **RAG 检索增强技术**，它不仅能回答校园琐事，更能化身为专业的 AI 导师，在多种教育场景下为学生提供 1 对 1 的交互式陪练。
 
-无论是新生入学报到、奖学金申请流程，还是图书馆闭馆时间查询，**“小云”学姐** 都能通过流式对话，实时为你答疑解惑。
+核心理念：**星云让 AI 拥有“老师的身体与对话能力”，把教育从单纯的知识传递升级为“实时对话、引导思考、反馈评测”的闭环体验。**
 
 ## ✨ 核心功能 (Key Features)
 
-- **🧠 深度语义理解**：基于 **GLM-4** 大模型，能够理解复杂的口语化提问，识别用户意图。
-- **🔍 实时 RAG 检索**：集成 **Firecrawl** 搜索引擎，实时抓取学校官网/教务处数据，确保回答的时效性和准确性（拒绝 AI 幻觉）。
-- **⚡ 流式极速响应**：采用 **Server-Sent Events (SSE)** 技术，实现打字机式的流式回复，零等待交互体验。
-- **🎨 Markdown 富文本渲染**：支持渲染列表、加粗、链接等格式，让复杂的办事流程（如“第一步、第二步...”）一目了然。
-- **👩‍🏫 数字人形象交互**：集成数字人形象展示（静态/动态），配合呼吸动画，提供更有亲和力的交互界面。
-- **💬 拟人化人设**：内置“热心学姐”系统人设，拒绝冷冰冰的机器回复，提供情绪价值与引导式回答。
+- **🎓 全场景 AI 导师陪练 (Tutor Mode)**
+    - **面试模拟**：支持学生会招新、名企求职面试模拟，AI 主动提问并控场。
+    - **实时评测反馈**：每一轮回答后，AI 都会给出【评测建议】，指出优点与不足，并引导下一步思考。
+    - **定制化教学**：支持英语口语对练、学科知识考核、择业顾问等多种教育培训场景。
+- **👤 3D 数字人多模态交互**
+    - **音画同步**：集成 3D 数字人 SDK，实现实时语音播报 (TTS) 与嘴型同步驱动。
+    - **情绪交互**：数字人具备倾听、思考、互动等多种动态，提供沉浸式的陪伴学习感。
+- **🔍 智能校园咨询 (RAG Guide)**
+    - **事实准确**：集成 Firecrawl 实时联网检索，确保校园政策、流程回答的准确性。
+    - **温暖人设**：内置“热心学姐小云”人设，提供有温度的交互体验。
+- **🧠 深度语义记忆**
+    - 支持完整的上下文对话记忆，实现多轮连续的教学引导与深度交流。
 
 ## 🛠️ 技术栈 (Tech Stack)
 
-### 前端 (Frontend)
-- **Framework**: Vue 3 (Vite)
-- **Styling**: CSS3 (Modern Flexbox/Grid), Responsive Design
-- **Markdown**: `markdown-it` (实时渲染 AI 回复)
-- **Communication**: Native `fetch` API (Stream Reader)
+- **AI 核心**: 智谱 AI (GLM-4) —— 驱动逻辑推理与导师人设。
+- **数字人**: 星云 (Xmov) SDK —— 提供 3D 渲染与实时语音同步。
+- **检索增强**: Firecrawl API —— 实时获取校园公网知识。
+- **前端**: Vue 3 + Vite —— 响应式交互界面。
+- **后端**: Node.js (Express) —— 流式 (SSE) 响应处理与历史记录维护。
 
-### 后端 (Backend)
-- **Runtime**: Node.js
-- **Server**: Express.js
-- **AI Integration**: 智谱 AI (BigModel) API
-- **Search Engine**: Firecrawl API (用于 RAG 上下文增强)
+## 🚀 演示指引 (Demo Workflow)
 
-## 🚀 快速开始 (Quick Start)
-
-### 环境要求
-- Node.js >= 18.0.0
-- npm 或 yarn
-
-### 1. 克隆项目
-```bash
-git clone https://github.com/your-username/ai-campus-counselor.git
-cd ai-campus-counselor
-```
-
-### 2. 后端配置与启动
-进入后端目录，安装依赖并配置环境变量。
-
-```bash
-cd backend
-npm install
-
-# 创建 .env 文件并填入你的 API Key
-# GLM_API_KEY=你的智谱API_Key
-# FIRECRAWL_API_KEY=你的Firecrawl_Key (可选，用于搜索增强)
-```
-
-启动后端服务：
-```bash
-node server.js
-# 服务将在 http://localhost:3000 启动
-```
-
-### 3. 前端启动
-新建一个终端窗口，进入项目根目录启动前端。
-
-```bash
-# 回到项目根目录
-cd .. 
-npm install
-npm run dev
-# 访问 http://localhost:5173
-```
-
-## 💡 AI Prompt 设计 (System Persona)
-
-为了让 AI 更像一位真实的学姐，我们精心设计了系统提示词（System Prompt）：
-
-```markdown
-你叫“小云”，是大学里的AI校园向导，也是一位热心、幽默且知识渊博的学长/学姐。
-你的目标是帮助同学解决校园生活、学习、办事流程中的各种问题。
-
-## 回复风格要求：
-1. **亲切自然**：使用口语化的表达，适当使用 Emoji (🎓, 🏫, ✨) 增加亲和力。
-2. **结构清晰**：对于复杂的办事流程（如入学报到），必须使用 Markdown 格式（列表、加粗）说明。
-3. **循循善诱**：如果用户的问题比较模糊，引导性地询问具体方向。
-4. **基于事实**：优先根据提供的 [RAG 上下文] 回答。
-```
-
-## 📂 目录结构
-
-```
-AI_Campus_Counselor/
-├── backend/                # 后端服务
-│   ├── server.js           # Express 服务器 & SSE 流式逻辑
-│   ├── package.json
-│   └── .env                # 配置文件 (API Keys)
-├── src/                    # 前端源码
-│   ├── views/
-│   │   └── ChatInterface.vue # 核心聊天组件 (Markdown渲染/流式接收)
-│   ├── App.vue             # 主布局
-│   ├── main.js             # 入口文件
-│   └── style.css           # 全局样式
-├── index.html
-├── package.json
-└── README.md
-```
-
-## 🤝 贡献与支持
-
-如果你觉得这个项目对你有帮助，欢迎给一个 ⭐️ Star！
-
-如有问题，请提交 Issue 或联系开发者。
+1. **校园咨询展示**：点击“新生入学流程”，展示 AI 结合实时搜索给出的结构化指引与数字人回复。
+2. **AI 导师展示**：点击 **“🎓 开启 AI 导师陪练”**。
+    - **场景 A (面试)**：告诉 AI“我想练习面试”，进入 1 对 1 面试实战与实时点评。
+    - **场景 B (口语)**：告诉 AI“我想练习英语口语”，进入双语教学模式。
+3. **评测报告**：完成练习后，AI 会生成一份【综合素质评估报告】，涵盖评分与改进建议。
 
 ---
+*Built for the AI Real-time Interactive Education Competition.*
 *Built with ❤️ by Claude Code & Vue.js*
