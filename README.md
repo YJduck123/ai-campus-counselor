@@ -35,17 +35,32 @@
 
 ```
 AI_Campus_Counselor/
-├── backend/                # 后端服务
-│   ├── server.js           # 核心业务逻辑 (AI 接口代理、流式处理、RAG 检索)
+├── backend/                    # 后端服务
+│   ├── routes/                 # API 路由
+│   │   ├── chat.js             # 聊天接口
+│   │   └── config.js           # 配置接口
+│   ├── services/               # 业务逻辑
+│   │   ├── chatService.js      # 聊天服务 (AI 接口、RAG 检索)
+│   │   └── configService.js    # 配置服务
+│   ├── server.js               # Express 入口
 │   ├── package.json
-│   └── .env                # 配置文件 (API Keys)
-├── src/                    # 前端源码
-│   ├── views/
-│   │   └── ChatInterface.vue # 核心交互组件 (数字人容器、聊天逻辑、语音队列)
-│   ├── App.vue             # 主布局
-│   ├── main.js             # 入口文件
-│   └── style.css           # 全局样式
-├── index.html              # HTML 入口 (包含 Xmov SDK 引用)
+│   ├── .env                    # 环境配置 (不提交)
+│   └── .env.example            # 环境变量模板
+├── src/                        # 前端源码
+│   ├── components/             # 可复用组件
+│   │   ├── DigitalHuman.vue    # 数字人组件
+│   │   ├── ChatBox.vue         # 聊天框组件
+│   │   └── QuickBubbles.vue    # 快捷操作组件
+│   ├── services/               # API 服务
+│   │   └── api.js              # 后端 API 调用
+│   ├── views/                  # 页面组件
+│   │   └── ChatInterface.vue   # 主聊天界面
+│   ├── router/                 # 路由配置
+│   ├── App.vue                 # 主布局
+│   ├── main.js                 # 入口文件
+│   └── style.css               # 全局样式
+├── index.html                  # HTML 入口
+├── vite.config.js              # Vite 配置
 ├── package.json
 └── README.md
 ```
