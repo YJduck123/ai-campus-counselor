@@ -36,3 +36,4 @@ backend/node_modules
 # Claude Code temporary files
 tmpclaude-*
 .ace-tool/
+.claude
