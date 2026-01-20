@@ -137,6 +137,9 @@ const sendMessage = async (text) => {
     let buffer = ''
     let hasStartedReceiving = false
     let assistantMessageIndex = -1
+    let currentAgent = null
+    let currentSources = []
+    let currentTrace = []
 
     while (true) {
       const { done, value } = await reader.read()
@@ -151,7 +154,28 @@ const sendMessage = async (text) => {
           try {
             const data = JSON.parse(line.substring(6))
 
-            if (data.type === 'text') {
+            // 处理 Agent 路由信息
+            if (data.type === 'routing') {
+              currentAgent = {
+                type: data.agent,
+                confidence: data.confidence
+              }
+            }
+
+            // 处理 RAG 检索来源
+            else if (data.type === 'sources') {
+              currentSources = data.sources || []
+            }
+
+            // 多 Agent 编排过程（可选）
+            else if (data.type === 'trace') {
+              currentTrace.push({
+                step: data.step,
+                content: data.content
+              })
+            }
+
+            else if (data.type === 'text') {
               if (!hasStartedReceiving) {
                 digitalHumanRef.value?.think()
                 hasStartedReceiving = true
@@ -164,7 +188,10 @@ const sendMessage = async (text) => {
               if (assistantMessageIndex === -1) {
                 assistantMessageIndex = messages.value.push({
                   role: 'assistant',
-                  content: ''
+                  content: '',
+                  agent: currentAgent,
+                  sources: currentSources,
+                  trace: currentTrace
                 }) - 1
               }
 

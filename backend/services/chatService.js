@@ -5,6 +5,8 @@
 const axios = require('axios');
 const { processRouting, AgentType } = require('./agentRouter');
 const { performRAG } = require('./ragService');
+const { runMultiAgent } = require('./multiAgentOrchestrator');
+const { hasRealApiKey } = require('./llmClient');
 
 /**
  * 通过 Firecrawl 搜索校园信息（作为 RAG 的补充）
@@ -55,155 +57,68 @@ async function handleChatStream(req, res) {
     try {
         console.log('Received message (Stream):', message);
 
-        // ========== 1. Multi-Agent 路由 ==========
-        const routing = processRouting(message, history);
-        console.log(`[Router] Agent: ${routing.agent}, NeedsRAG: ${routing.needsRAG}, Confidence: ${routing.confidence}`);
+        const traceEnabled = process.env.AGENT_TRACE === '1';
+        const emit = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
-        // 发送路由信息到前端（可选，用于调试）
-        res.write(`data: ${JSON.stringify({
-            type: 'routing',
-            agent: routing.agent,
-            confidence: routing.confidence
-        })}\n\n`);
+        // Heuristic routing used only to decide optional extra retrieval (Firecrawl)
+        const heuristicRouting = processRouting(message, history);
 
-        // ========== 2. RAG 检索（如果需要）==========
-        let ragContext = "";
-        let ragSources = [];
-
-        if (routing.needsRAG) {
-            console.log('[RAG] Performing knowledge retrieval...');
-            const ragResult = await performRAG(message);
-
-            if (ragResult.usedRAG) {
-                ragContext = ragResult.context;
-                ragSources = ragResult.sources;
-                console.log(`[RAG] Retrieved ${ragSources.length} relevant documents`);
+        // Optional tool: Firecrawl background search (only for campus knowledge questions)
+        let firecrawlContext = "";
+        if (heuristicRouting.agent === AgentType.KNOWLEDGE && process.env.FIRECRAWL_API_KEY) {
+            firecrawlContext = await searchCampusInfo(message);
+            if (traceEnabled && firecrawlContext) {
+                emit({ type: 'trace', step: 'firecrawl', content: `Firecrawl ok, chars=${firecrawlContext.length}` });
             }
         }
 
-        // ========== 3. Firecrawl 补充搜索（可选）==========
-        let firecrawlContext = "";
-        if (routing.agent === AgentType.KNOWLEDGE && process.env.FIRECRAWL_API_KEY) {
-            firecrawlContext = await searchCampusInfo(message);
-        }
+        // Mock mode (no real key) - keep previous behavior to allow demo UI
+        if (!hasRealApiKey()) {
+            const routing = heuristicRouting;
+            console.log(`[Router] Agent: ${routing.agent}, NeedsRAG: ${routing.needsRAG}, Confidence: ${routing.confidence}`);
 
-        // ========== 4. 构建最终 Prompt ==========
-        let finalUserPrompt = message;
+            emit({ type: 'routing', agent: routing.agent, confidence: routing.confidence });
 
-        // 如果有 RAG 上下文，构建增强提示
-        if (ragContext) {
-            finalUserPrompt = `以下是从校园知识库中检索到的相关参考信息：
+            let ragSources = [];
+            if (routing.needsRAG) {
+                const ragResult = await performRAG(message);
+                if (ragResult.usedRAG) ragSources = ragResult.sources || [];
+            }
 
-${ragContext}
-
----
-
-请基于以上参考信息，准确回答用户的问题。如果参考信息不足以回答问题，可以结合你的知识进行补充，但要明确告知用户哪些是来自知识库的准确信息，哪些是补充说明。
-
-用户问题：${message}`;
-        }
-
-        // 如果还有 Firecrawl 的补充信息
-        if (firecrawlContext && !ragContext) {
-            finalUserPrompt = `以下是搜索到的参考背景信息：
-${firecrawlContext}
-
-请结合以上信息回答用户的问题：${message}`;
-        }
-
-        // ========== 5. 构建消息数组 ==========
-        const apiMessages = [
-            { role: "system", content: routing.systemPrompt }
-        ];
-
-        // 添加历史记录（限制最近10条）
-        if (history && Array.isArray(history)) {
-            const limitedHistory = history.slice(-10);
-            limitedHistory.forEach(h => {
-                if (h.role && h.content && ['user', 'assistant'].includes(h.role)) {
-                    apiMessages.push({
-                        role: h.role,
-                        content: String(h.content).slice(0, 4000)
-                    });
-                }
-            });
-        }
-
-        // 添加当前用户消息
-        apiMessages.push({ role: "user", content: finalUserPrompt });
-
-        // ========== 6. 调用 GLM-4 ==========
-        let fullResponseText = "";
-
-        if (!process.env.GLM_API_KEY || process.env.GLM_API_KEY.includes('your_')) {
-            // 模拟模式
             const mockText = getMockResponse(routing.agent, message);
-            let i = 0;
-            const interval = setInterval(() => {
-                if (i < mockText.length) {
-                    const char = mockText[i++];
-                    res.write(`data: ${JSON.stringify({ type: 'text', content: char })}\n\n`);
-                    fullResponseText += char;
-                } else {
-                    clearInterval(interval);
-                    // 发送来源信息
-                    if (ragSources.length > 0) {
-                        res.write(`data: ${JSON.stringify({ type: 'sources', sources: ragSources })}\n\n`);
-                    }
-                    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-                    res.end();
-                }
-            }, 30);
+            for (const ch of mockText) emit({ type: 'text', content: ch });
+            if (ragSources.length > 0) emit({ type: 'sources', sources: ragSources });
+            emit({ type: 'done' });
+            res.end();
             return;
         }
 
-        // 调用真实 API
-        const response = await axios.post('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-            model: "glm-4",
-            stream: true,
-            messages: apiMessages
-        }, {
-            headers: {
-                'Authorization': `Bearer ${process.env.GLM_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            responseType: 'stream'
+        // Multi-Agent orchestration: Planner -> RAG -> Draft -> Verify -> Finalize
+        const result = await runMultiAgent(message, history, {
+            extraContext: firecrawlContext,
+            trace: traceEnabled ? ({ step, content }) => emit({ type: 'trace', step, content }) : null
         });
 
-        // 处理流式响应
-        response.data.on('data', (chunk) => {
-            const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
-            for (const line of lines) {
-                if (line.includes('[DONE]')) return;
-                if (line.startsWith('data: ')) {
-                    try {
-                        const json = JSON.parse(line.substring(6));
-                        const content = json.choices[0].delta.content;
-                        if (content) {
-                            res.write(`data: ${JSON.stringify({ type: 'text', content: content })}\n\n`);
-                            fullResponseText += content;
-                        }
-                    } catch (e) {
-                        console.error('Error parsing stream chunk', e);
-                    }
-                }
-            }
+        console.log(`[MultiAgent] Agent: ${result.routing.agent}, NeedsRAG: ${result.routing.needsRAG}, Confidence: ${result.routing.confidence}`);
+
+        emit({
+            type: 'routing',
+            agent: result.routing.agent,
+            confidence: result.routing.confidence
         });
 
-        response.data.on('end', async () => {
-            // 发送来源信息（如果有 RAG 检索结果）
-            if (ragSources.length > 0) {
-                res.write(`data: ${JSON.stringify({ type: 'sources', sources: ragSources })}\n\n`);
-            }
-            res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-            res.end();
-        });
+        if (result.sources && result.sources.length > 0) {
+            emit({ type: 'sources', sources: result.sources });
+        }
 
-        response.data.on('error', (err) => {
-            console.error('Stream error:', err);
-            res.write(`data: ${JSON.stringify({ type: 'error', content: 'Stream Error' })}\n\n`);
-            res.end();
-        });
+        const finalText = result.finalText || '';
+        const chunkSize = 12;
+        for (let i = 0; i < finalText.length; i += chunkSize) {
+            emit({ type: 'text', content: finalText.slice(i, i + chunkSize) });
+        }
+
+        emit({ type: 'done' });
+        res.end();
 
     } catch (error) {
         console.error('Error processing request:', error);

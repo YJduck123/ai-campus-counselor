@@ -21,7 +21,7 @@
 | 技术能力 | 实现方式 | 效果 |
 |---------|---------|------|
 | **RAG 检索增强** | 向量数据库 + 混合检索（语义+关键词） | 基于知识库准确回答，降低 AI 幻觉 |
-| **Multi-Agent 路由** | 意图识别 + 动态路由 + 专业 Agent | 不同场景自动切换最佳处理策略 |
+| **Multi-Agent 协作编排** | Planner → Specialist → Verifier → Finalizer（多次 LLM 调用） | 多角色交叉校验，降低幻觉与漏引用 |
 | **知识库管理** | 结构化 JSON + 自动向量化 | 支持 22+ 文档，8 大分类 |
 | **3D 数字人** | Xmov SDK + 实时语音同步 | 提供拟人化的交互体验 |
 
@@ -37,42 +37,38 @@
                               用户输入
                                   │
                                   ▼
+                    ┌──────────────────────────────┐
+                    │ Multi-Agent Orchestrator     │
+                    │ (multiAgentOrchestrator.js)  │
+                    └───────────────┬──────────────┘
+                                    │
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │ PlannerAgent (route + plan)  │
+                    └───────────────┬──────────────┘
+                                    │ needsRAG?
+                        ┌───────────┴───────────┐
+                        ▼                       ▼
+            ┌─────────────────────┐   ┌──────────────────────┐
+            │ RAG Pipeline (KB)   │   │ Web Search (Firecrawl)│
+            │ vectorStore/ragSvc  │   │ optional             │
+            └───────────┬─────────┘   └───────────┬──────────┘
+                        └───────────┬─────────────┘
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │ SpecialistAgent (draft)      │
+                    └───────────────┬──────────────┘
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │ VerifierAgent (anti-hallu)   │
+                    └───────────────┬──────────────┘
+                                    ▼
+                    ┌──────────────────────────────┐
+                    │ FinalizerAgent (final answer)│
+                    └───────────────┬──────────────┘
+                                    ▼
                     ┌─────────────────────────┐
-                    │   Multi-Agent Router    │ ◄── 意图识别 + 关键词匹配
-                    │   (agentRouter.js)      │     置信度评估
-                    └───────────┬─────────────┘
-                                │
-            ┌───────────────────┼───────────────────┐
-            ▼                   ▼                   ▼
-    ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-    │  Knowledge    │   │    Tutor      │   │   General     │
-    │    Agent      │   │    Agent      │   │    Agent      │
-    │  (校园知识)    │   │  (陪练评测)    │   │  (日常对话)    │
-    └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
-            │                   │                   │
-            ▼                   │                   │
-    ┌───────────────┐           │                   │
-    │  RAG Pipeline │           │                   │
-    │ ┌───────────┐ │           │                   │
-    │ │ Embedding │ │ ◄── 智谱 Embedding-2 API      │
-    │ │ (向量化)   │ │           │                   │
-    │ └─────┬─────┘ │           │                   │
-    │       ▼       │           │                   │
-    │ ┌───────────┐ │           │                   │
-    │ │ Vector    │ │ ◄── 余弦相似度 + 关键词匹配   │
-    │ │ Search    │ │     混合检索 (Hybrid)        │
-    │ └─────┬─────┘ │           │                   │
-    │       ▼       │           │                   │
-    │ ┌───────────┐ │           │                   │
-    │ │ Context   │ │ ◄── Top-K 结果格式化         │
-    │ │ Builder   │ │           │                   │
-    │ └───────────┘ │           │                   │
-    └───────┬───────┘           │                   │
-            └───────────────────┼───────────────────┘
-                                ▼
-                    ┌─────────────────────────┐
-                    │      GLM-4 LLM          │ ◄── 增强后的 Prompt
-                    │   (流式生成回答)         │     + System Prompt
+                    │      GLM-4 LLM          │ ◄── 多次调用（planner/draft/verify/final）
                     └───────────┬─────────────┘
                                 │
                                 ▼
@@ -106,7 +102,7 @@
 - **Communication**: Server-Sent Events (SSE) 流式传输
 - **AI Core**: 智谱 AI (GLM-4 + Embedding-2)
 - **RAG**: 内存向量数据库 + 余弦相似度检索
-- **Multi-Agent**: 自研路由系统（3个专业Agent）
+- **Multi-Agent**: 多 Agent 协作编排（Planner/Specialist/Verifier/Finalizer）+ 场景路由
 
 ## 📂 项目结构 (Project Structure)
 
@@ -180,6 +176,9 @@ XMOV_APP_SECRET=your_xmov_app_secret_here
 # Firecrawl (选填，用于联网搜索补充)
 FIRECRAWL_API_KEY=your_firecrawl_api_key_here
 
+# 可选：多 Agent 编排过程回显（调试用，前端可展示 planner/draft/verifier/final）
+AGENT_TRACE=1
+
 # 端口配置
 PORT=3000
 ```
@@ -228,6 +227,27 @@ npm run dev
 ```
 [Router] Agent: knowledge, NeedsRAG: true, Confidence: 0.95
 [Router] Agent: tutor, NeedsRAG: false, Confidence: 0.9
+```
+
+#### 1.1 🧠 多 Agent 协作编排（升级版）
+
+> **文件**: `backend/services/multiAgentOrchestrator.js`, `backend/services/llmClient.js`
+
+系统通过 **多次 LLM 调用的协作链路** 进行规划、生成、校验与最终整合：
+
+```
+PlannerAgent  ->  (RAG/联网检索)  ->  SpecialistAgent(Draft)
+      ->  VerifierAgent(查幻觉/补引用)  ->  FinalizerAgent(最终回答+引用)
+```
+
+- PlannerAgent：对意图与是否需要检索做二次判断（输出 JSON 决策）
+- SpecialistAgent：按场景产出草稿（强制 [KB1]/[KB2] 引用）
+- VerifierAgent：检查“校园特定事实”是否有依据/是否缺引用
+- FinalizerAgent：根据 verifier 反馈重写为最终答案，并附“参考资料”小节
+
+可选开启编排过程回显（调试用）：
+```bash
+AGENT_TRACE=1
 ```
 
 ---
