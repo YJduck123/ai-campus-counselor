@@ -37,3 +37,7 @@ backend/node_modules
 tmpclaude-*
 .ace-tool/
 .claude
+
+# Local Chrome/DevTools profiles (generated)
+.chrome-devtools/
+.chrome-profile/

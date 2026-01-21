@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: `http://localhost:${process.env.VITE_BACKEND_PORT || 3000}`,
         changeOrigin: true,
       }
     }

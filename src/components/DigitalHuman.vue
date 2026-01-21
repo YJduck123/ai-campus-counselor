@@ -30,6 +30,7 @@ const error = ref('')
 let instance = null
 let isSpeaking = false
 const speakQueue = []
+let isCleaningUp = false
 
 // 错误码映射
 const errorMessages = {
@@ -165,6 +166,9 @@ const think = () => instance?.think?.()
 
 // 清理
 const cleanup = () => {
+  if (isCleaningUp) return
+  isCleaningUp = true
+
   if (instance) {
     try {
       instance.destroy()
@@ -174,6 +178,11 @@ const cleanup = () => {
       console.error('销毁数字人实例失败:', e)
     }
   }
+
+  isSpeaking = false
+  speakQueue.length = 0
+  isInitialized.value = false
+  isCleaningUp = false
 }
 
 onMounted(() => {
@@ -182,11 +191,16 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (import.meta.env.PROD) {
-    cleanup()
-  }
+  cleanup()
   window.removeEventListener('beforeunload', cleanup)
 })
+
+// Vite HMR 下，组件会被替换；需要显式销毁旧实例，避免残留导致重复拉流/刷日志
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    cleanup()
+  })
+}
 
 // 暴露方法给父组件
 defineExpose({ speak, listen, think })
