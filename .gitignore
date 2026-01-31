@@ -41,3 +41,4 @@ tmpclaude-*
 # Local Chrome/DevTools profiles (generated)
 .chrome-devtools/
 .chrome-profile/
+.ccb_config/
